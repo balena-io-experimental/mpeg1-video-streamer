@@ -1,0 +1,14 @@
+FROM resin/%%RESIN_MACHINE_NAME%%-node:5.3
+
+RUN apt-get update && apt-get install -y \
+	libav-tools
+
+RUN mkdir -p /app
+WORKDIR /app
+COPY package.json /app/
+
+RUN npm install
+
+COPY . /app/
+
+CMD npm start
