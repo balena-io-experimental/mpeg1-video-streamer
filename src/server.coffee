@@ -6,12 +6,16 @@ bodyParser = require('body-parser')
 WebSocket = require('ws')
 
 config = {
-  httpPort: process.env['HTTP_PORT'] ? 80
-  streamPort: process.env['STREAM_PORT'] ? 8082
+	streamPort: process.env['STREAM_PORT'] ? 8082
+	streamEnabled: (process.env['ENABLE_VIDEO_STREAM'] == '1')
+	secret: new Buffer(process.env['STREAM_API_KEY']) ? 'bananas'
+	wsServerUrl: process.env['STREAMING_SERVER_URL']
 }
 
-streamEnabled = (process.env['ENABLE_VIDEO_STREAM'] == '1')
-secret = new Buffer(process.env['STREAM_API_KEY'])
+# These will be passed to do_ffmpeg.sh
+process.env['VIDEO_STREAM_WIDTH'] = 80 if !process.env['VIDEO_STREAM_WIDTH']?
+process.env['VIDEO_STREAM_HEIGHT'] = 60 if !process.env['VIDEO_STREAM_HEIGHT']?
+
 killTimeout = null
 killInterval = null
 lastDataTime = Date.now()
@@ -54,11 +58,11 @@ startFfmpeg = ->
 		, 1000
 	, 5000
 
-if streamEnabled
+if config.streamEnabled
 	# Initiate websocket connection to server
-	wsServerUrl = process.env['STREAMING_SERVER_URL']
-	ws = new WebSocket(wsServerUrl)
+	ws = new WebSocket(config.wsServerUrl)
 	ws.on 'open', ->
+		ws.send(JSON.stringify({apikey: config.secret}))
 		http.createServer (req, res) ->
 			console.log(
 				'Stream Connected: ' + req.socket.remoteAddress +
@@ -68,7 +72,6 @@ if streamEnabled
 			req.on 'data', (data) ->
 				lastDataTime = Date.now()
 				ws.send(data, { binary: true })
-
 		.listen config.streamPort, ->
 			console.log('Listening for video stream on port ' + config.streamPort)
 			startFfmpeg()
